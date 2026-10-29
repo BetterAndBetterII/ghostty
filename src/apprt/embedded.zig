@@ -4,6 +4,7 @@
 //! example for the macOS build of Ghostty so that we can use a native
 //! Swift+XCode-based application.
 
+const termio = @import("../termio.zig");
 const std = @import("std");
 const builtin = @import("builtin");
 const assert = @import("../quirks.zig").inlineAssert;
@@ -458,6 +459,9 @@ pub const Surface = struct {
     /// that getTitle works without the implementer needing to save it.
     title: ?[:0]const u8 = null,
 
+    /// Jarvis fork: the host carries the terminal's bytes (no pty here).
+    external_io: ?termio.External.Config = null,
+
     /// Surface initialization options.
     pub const Options = extern struct {
         /// The platform that this surface is being initialized for and
@@ -499,7 +503,18 @@ pub const Surface = struct {
 
         /// Context for the new surface
         context: apprt.surface.NewSurfaceContext = .window,
+
+        /// Jarvis fork, external I/O: when set, no command runs. What the
+        /// terminal writes goes to io_write (with userdata), its new size to
+        /// io_resize, and the remote output comes in by ghostty_surface_io_feed.
+        io_write: ?termio.External.WriteFn = null,
+        io_resize: ?termio.External.ResizeFn = null,
     };
+
+    /// The core surface asks: does the host carry the bytes (external backend)?
+    pub fn externalIO(self: *const Surface) ?termio.External.Config {
+        return self.external_io;
+    }
 
     pub fn init(self: *Surface, app: *App, opts: Options) !void {
         self.* = .{
@@ -513,6 +528,11 @@ pub const Surface = struct {
             },
             .size = .{ .width = 800, .height = 600 },
             .cursor_pos = .{ .x = -1, .y = -1 },
+            .external_io = if (opts.io_write) |write| .{
+                .userdata = opts.userdata,
+                .write = write,
+                .resize = opts.io_resize,
+            } else null,
         };
 
         // Add ourselves to the list of surfaces on the app.
@@ -2107,6 +2127,15 @@ pub const CAPI = struct {
     /// Send raw text to the terminal. This is treated like a paste
     /// so this isn't useful for sending escape sequences. For that,
     /// individual key input should be used.
+    /// Jarvis fork: output of the remote terminal, as if read from a pty.
+    export fn ghostty_surface_io_feed(
+        surface: *Surface,
+        ptr: [*]const u8,
+        len: usize,
+    ) void {
+        surface.core_surface.io.processOutput(ptr[0..len]);
+    }
+
     export fn ghostty_surface_text(
         surface: *Surface,
         ptr: [*]const u8,

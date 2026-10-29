@@ -24,6 +24,30 @@ pub fn init(
         Config.genericMacOSTarget(b, null),
     ));
 
+    // iOS (Jarvis fork: upstream dropped the iOS slices after 1.3.1; the
+    // embedded apprt and the Metal renderer still support a UIView).
+    const ios = try GhosttyLib.initStatic(b, &try deps.retarget(
+        b,
+        b.resolveTargetQuery(.{
+            .cpu_arch = .aarch64,
+            .os_tag = .ios,
+            .os_version_min = Config.osVersionMin(.ios),
+            .abi = null,
+        }),
+    ));
+
+    // iOS Simulator
+    const ios_sim = try GhosttyLib.initStatic(b, &try deps.retarget(
+        b,
+        b.resolveTargetQuery(.{
+            .cpu_arch = .aarch64,
+            .os_tag = .ios,
+            .os_version_min = Config.osVersionMin(.ios),
+            .abi = .simulator,
+            .cpu_model = .{ .explicit = &std.Target.aarch64.cpu.apple_a17 },
+        }),
+    ));
+
     // Generate a headers directory with only ghostty.h and the module
     // map. We can't use include/ directly because it also contains the
     // libghostty-vt headers under include/ghostty/, which would trigger
@@ -45,6 +69,16 @@ pub fn init(
                     .library = macos_universal.output,
                     .headers = headers,
                     .dsym = macos_universal.dsym,
+                },
+                .{
+                    .library = ios.output,
+                    .headers = headers,
+                    .dsym = ios.dsym,
+                },
+                .{
+                    .library = ios_sim.output,
+                    .headers = headers,
+                    .dsym = ios_sim.dsym,
                 },
             },
 

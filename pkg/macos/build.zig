@@ -74,6 +74,9 @@ pub fn build(b: *std.Build) !void {
         ) } },
         .target = target,
         .optimize = optimize,
+        // Jarvis fork: the iOS SDK's CoreGraphics headers use blocks, which
+        // the translator only turns on for macOS by itself.
+        .extra_args = if (target.result.os.tag == .ios) &.{"-fblocks"} else &.{},
     });
 
     const lib = b.addLibrary(.{

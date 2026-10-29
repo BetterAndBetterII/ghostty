@@ -712,7 +712,17 @@ pub fn init(
             .size = size,
             .full_config = config,
             .config = io_config,
-            .backend = .{ .exec = io_exec },
+            // Jarvis fork: a host that carries the bytes itself (the
+            // program runs on another machine) gets the external backend.
+            .backend = backend: {
+                if (comptime @hasDecl(apprt.runtime.Surface, "externalIO")) {
+                    if (rt_surface.externalIO()) |ext| {
+                        io_exec.deinit();
+                        break :backend .{ .external = termio.External.init(ext) };
+                    }
+                }
+                break :backend .{ .exec = io_exec };
+            },
             .mailbox = io_mailbox,
             .renderer_state = &self.renderer_state,
             .renderer_wakeup = render_thread.wakeup,
@@ -1386,6 +1396,7 @@ fn childExitedAbnormally(
     // Build up our command for the error message
     const command = try std.mem.join(alloc, " ", switch (self.io.backend) {
         .exec => |*exec| exec.subprocess.args,
+        .external => &[_][:0]const u8{},
     });
     const runtime_str = try alloc.print("{d} ms", .{info.runtime_ms});
 

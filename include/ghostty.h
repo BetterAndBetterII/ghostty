@@ -505,6 +505,9 @@ typedef enum {
   GHOSTTY_SURFACE_CONTEXT_SPLIT = 2,
 } ghostty_surface_context_e;
 
+typedef void (*ghostty_io_write_cb)(void*, const char*, uintptr_t);
+typedef void (*ghostty_io_resize_cb)(void*, uint16_t, uint16_t, uint32_t, uint32_t);
+
 typedef struct {
   ghostty_platform_e platform_tag;
   ghostty_platform_u platform;
@@ -518,6 +521,12 @@ typedef struct {
   const char* initial_input;
   bool wait_after_command;
   ghostty_surface_context_e context;
+  // Jarvis fork, external I/O: when io_write is set no command runs; what the
+  // terminal writes goes to io_write(userdata, bytes, len), a new size to
+  // io_resize(userdata, cols, rows, width_px, height_px), and the remote
+  // terminal's output is fed in with ghostty_surface_io_feed.
+  ghostty_io_write_cb io_write;
+  ghostty_io_resize_cb io_resize;
 } ghostty_surface_config_s;
 
 typedef struct {
@@ -1202,6 +1211,7 @@ GHOSTTY_API bool ghostty_surface_key_is_binding(ghostty_surface_t,
                                                    ghostty_input_key_s,
                                                    ghostty_binding_flags_e*);
 GHOSTTY_API void ghostty_surface_text(ghostty_surface_t, const char*, uintptr_t);
+GHOSTTY_API void ghostty_surface_io_feed(ghostty_surface_t, const char*, uintptr_t);
 GHOSTTY_API void ghostty_surface_paste_text(ghostty_surface_t, const char*, uintptr_t);
 GHOSTTY_API void ghostty_surface_preedit(ghostty_surface_t, const char*, uintptr_t);
 GHOSTTY_API bool ghostty_surface_mouse_captured(ghostty_surface_t);

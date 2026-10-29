@@ -824,6 +824,13 @@ pub fn osVersionMin(tag: std.Target.Os.Tag) ?std.Target.Query.OsVersion {
             .patch = 0,
         } },
 
+        // Jarvis fork: GhosttyKit for iOS again.
+        .ios => .{ .semver = .{
+            .major = 17,
+            .minor = 0,
+            .patch = 0,
+        } },
+
         // This should never happen currently. If we add a new target then
         // we should add a new case here.
         else => null,
